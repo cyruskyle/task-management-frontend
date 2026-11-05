@@ -1,0 +1,16 @@
+services:
+  frontend:
+    build:
+      context: .
+    image: task-management-frontend:local
+    ports:
+      - "127.0.0.1:${APP_PORT:?APP_PORT is required}:8080"
+    read_only: true
+    tmpfs:
+      - /var/cache/nginx
+      - /var/run
+      - /tmp
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
