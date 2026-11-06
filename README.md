@@ -1,32 +1,36 @@
-# React + TypeScript + Vite
+# Task Management Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+React 19, TypeScript, Vite, Tailwind CSS, and shadCN components for the internal infrastructure task tracker.
 
-Currently, two official plugins are available:
+## Local development
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The backend must be running with `APP_AUTH_USERNAME` and `APP_AUTH_PASSWORD` set.
 
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```sh
+cp .env.example .env
+npm ci
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+The Vite dev server proxies `/api` to `VITE_API_PROXY_TARGET` (default `http://127.0.0.1:8080`), so authenticated requests stay same-origin during development.
+
+## Authentication
+
+Sign in with the credentials configured on the backend. Credentials are held in memory for the current tab only; they are never written to `localStorage`, `sessionStorage`, or cookies. API responses are validated at runtime before rendering, and task content is always rendered as text.
+
+## Scripts
+
+```sh
+npm run dev      # development server
+npm test         # Vitest test suite
+npm run lint     # Oxlint
+npm run build    # type-check and production build
+```
+
+## Docker
+
+```sh
+docker compose up -d --build
+```
+
+Nginx serves the built assets and reverse-proxies `/api/` to `API_UPSTREAM` (default `http://app:8080`). Set `API_UPSTREAM` when the backend container uses a different hostname or network. Keeping the API same-origin lets the Content-Security-Policy stay at `connect-src 'self'`.
