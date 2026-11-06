@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import {
   Check,
+  Columns3,
+  List as ListIcon,
   LoaderCircle,
   LogOut,
   Pencil,
@@ -12,6 +14,8 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { cn } from '@/lib/utils'
+import TaskBoard from './TaskBoard'
+import StatusBadge from './TaskStatusBadge'
 import {
   buildTaskInput,
   draftFromTask,
@@ -47,50 +51,6 @@ const allAssignees = 'All assignees'
 
 const cellInputClassName =
   'h-8 w-full rounded-md border bg-background px-2 text-sm outline-none transition-shadow placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/20 disabled:opacity-60'
-
-const statusStyles: Record<TaskStatus, { pill: string; dot: string }> = {
-  Resolved: {
-    pill: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
-    dot: 'bg-emerald-500',
-  },
-  Reviewing: {
-    pill: 'border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
-    dot: 'bg-amber-500',
-  },
-  'In Progress': {
-    pill: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-300',
-    dot: 'bg-blue-500',
-  },
-  Test: {
-    pill: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300',
-    dot: 'bg-violet-500',
-  },
-  Blocked: {
-    pill: 'border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
-    dot: 'bg-red-500',
-  },
-  Shelved: {
-    pill: 'border-zinc-200 bg-zinc-50 text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-300',
-    dot: 'bg-zinc-400',
-  },
-}
-
-function StatusBadge({ status }: { status: TaskStatus }) {
-  const style = statusStyles[status]
-
-  return (
-    <Badge
-      variant="outline"
-      className={cn('gap-1.5 rounded-full px-2.5 py-1 font-normal', style.pill)}
-    >
-      <span
-        aria-hidden="true"
-        className={cn('size-1.5 rounded-full', style.dot)}
-      />
-      {status}
-    </Badge>
-  )
-}
 
 type EditableRowProps = {
   draft: TaskDraft
@@ -267,6 +227,7 @@ function TaskTracker({
   )
   const [saveError, setSaveError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [view, setView] = useState<'list' | 'board'>('list')
 
   const projectTasks =
     selectedProject === allProjects
@@ -296,6 +257,7 @@ function TaskTracker({
       return
     }
 
+    setView('list')
     setEditor({
       taskId: null,
       draft: emptyTaskDraft(
@@ -311,6 +273,7 @@ function TaskTracker({
       return
     }
 
+    setView('list')
     setEditor({ taskId: task.id, draft: draftFromTask(task) })
     setSaveError(null)
   }
@@ -574,6 +537,35 @@ function TaskTracker({
                   Reset
                 </Button>
               ) : null}
+
+              <div
+                role="group"
+                aria-label="Task view"
+                className="flex items-center gap-0.5 rounded-lg border p-0.5"
+              >
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={view === 'list' ? 'secondary' : 'ghost'}
+                  aria-pressed={view === 'list'}
+                  disabled={editor !== null}
+                  onClick={() => setView('list')}
+                >
+                  <ListIcon aria-hidden="true" />
+                  List
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant={view === 'board' ? 'secondary' : 'ghost'}
+                  aria-pressed={view === 'board'}
+                  disabled={editor !== null}
+                  onClick={() => setView('board')}
+                >
+                  <Columns3 aria-hidden="true" />
+                  Board
+                </Button>
+              </div>
             </div>
           </div>
 
@@ -586,7 +578,8 @@ function TaskTracker({
             </div>
           ) : null}
 
-          <div className="overflow-x-auto border-t">
+          {view === 'list' ? (
+            <div className="overflow-x-auto border-t">
             <table className="w-full min-w-[1180px] text-left text-sm">
               <caption className="sr-only">
                 Tasks with reference, name, project, assignee, story points,
@@ -717,7 +710,14 @@ function TaskTracker({
                 ) : null}
               </tbody>
             </table>
-          </div>
+            </div>
+          ) : (
+            <TaskBoard
+              tasks={visibleTasks}
+              onEditTask={startEdit}
+              onUpdateTask={onUpdateTask}
+            />
+          )}
 
           <footer className="flex flex-col gap-1 border-t bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
             <span>Task content is rendered as text and treated as untrusted.</span>

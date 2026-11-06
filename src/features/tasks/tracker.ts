@@ -53,6 +53,15 @@ export type TaskFilters = {
   query: string
 }
 
+export const boardStatuses: TaskStatus[] = [
+  'In Progress',
+  'Reviewing',
+  'Test',
+  'Blocked',
+  'Resolved',
+  'Shelved',
+]
+
 export function filterTasks(taskList: Task[], filters: TaskFilters) {
   const query = filters.query.trim().toLocaleLowerCase()
 
@@ -144,6 +153,27 @@ export function draftFromTask(task: Task): TaskDraft {
     status: task.status,
     notes: task.notes,
   }
+}
+
+export function taskToInput(task: Task): TaskInput {
+  return {
+    reference: task.reference,
+    name: task.name,
+    project: task.project,
+    assignees: [...task.assignees],
+    storyPoints: task.storyPoints,
+    assignedDate: task.assignedDate,
+    doneDate: task.doneDate,
+    status: task.status,
+    notes: task.notes,
+  }
+}
+
+export function groupTasksByStatus(taskList: Task[]) {
+  return boardStatuses.map((status) => ({
+    status,
+    tasks: taskList.filter((task) => task.status === status),
+  }))
 }
 
 export function buildTaskInput(

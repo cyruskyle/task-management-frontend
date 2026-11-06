@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import TaskTracker from './TaskTracker'
 import type { Task, TaskInput } from './tracker'
@@ -33,6 +33,33 @@ function renderTracker(
 
 function fillField(label: string, value: string) {
   fireEvent.change(screen.getByLabelText(label), { target: { value } })
+}
+
+function createDataTransfer() {
+  const store = new Map<string, string>()
+
+  return {
+    effectAllowed: 'none',
+    dropEffect: 'none',
+    setData(type: string, value: string) {
+      store.set(type, value)
+    },
+    getData(type: string) {
+      return store.get(type) ?? ''
+    },
+  } as unknown as DataTransfer
+}
+
+const cacheTaskInput = {
+  reference: 'OPS-142',
+  name: 'Cache project summaries',
+  project: 'Data Platform',
+  assignees: ['Mina Park', 'Ravi Shah'],
+  storyPoints: 3,
+  assignedDate: '2026-01-05',
+  doneDate: null,
+  status: 'In Progress',
+  notes: 'Adds a read-through cache for project rollups.',
 }
 
 const createdTask: Task = {
@@ -229,5 +256,112 @@ describe('TaskTracker', () => {
 
     expect(screen.queryByLabelText('Task name')).not.toBeInTheDocument()
     expect(onCreateTask).not.toHaveBeenCalled()
+  })
+
+  it('switches to a board view grouped by status', () => {
+    renderTracker()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }))
+
+    const inProgress = screen.getByRole('region', {
+      name: 'In Progress column',
+    })
+    const blocked = screen.getByRole('region', { name: 'Blocked column' })
+    const resolved = screen.getByRole('region', { name: 'Resolved column' })
+
+    expect(within(inProgress).getByText('Cache project summaries')).toBeInTheDocument()
+    expect(
+      within(blocked).getByText('Delete archived project data'),
+    ).toBeInTheDocument()
+    expect(within(resolved).getByText('Schedule nightly vacuum')).toBeInTheDocument()
+    expect(
+      screen.getByRole('region', { name: 'Shelved column' }),
+    ).toHaveTextContent('Drop tasks here')
+  })
+
+  it('moves a task between columns with drag and drop', async () => {
+    const { onUpdateTask } = renderTracker({
+      onUpdateTask: vi.fn().mockResolvedValue(taskFixtures[0]),
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }))
+
+    const card = screen.getByText('Cache project summaries').closest('article')
+    const testColumn = screen.getByRole('region', { name: 'Test column' })
+    const dataTransfer = createDataTransfer()
+
+    expect(card).not.toBeNull()
+
+    fireEvent.dragStart(card as HTMLElement, { dataTransfer })
+    fireEvent.dragOver(testColumn, { dataTransfer })
+    fireEvent.drop(testColumn, { dataTransfer })
+
+    await waitFor(() =>
+      expect(onUpdateTask).toHaveBeenCalledWith(taskFixtures[0].id, {
+        ...cacheTaskInput,
+        status: 'Test',
+      }),
+    )
+  })
+
+  it('moves a task with the keyboard-accessible status control', async () => {
+    const { onUpdateTask } = renderTracker({
+      onUpdateTask: vi.fn().mockResolvedValue(taskFixtures[0]),
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }))
+    fireEvent.change(
+      screen.getByRole('combobox', {
+        name: 'Move Cache project summaries to status',
+      }),
+      { target: { value: 'Reviewing' } },
+    )
+
+    await waitFor(() =>
+      expect(onUpdateTask).toHaveBeenCalledWith(taskFixtures[0].id, {
+        ...cacheTaskInput,
+        status: 'Reviewing',
+      }),
+    )
+  })
+
+  it('shows an error when a board move fails', async () => {
+    renderTracker({
+      onUpdateTask: vi
+        .fn()
+        .mockRejectedValue(
+          new Error('That change conflicts with existing data.'),
+        ),
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }))
+    fireEvent.change(
+      screen.getByRole('combobox', {
+        name: 'Move Cache project summaries to status',
+      }),
+      { target: { value: 'Blocked' } },
+    )
+
+    await waitFor(() =>
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'That change conflicts with existing data.',
+      ),
+    )
+  })
+
+  it('opens the list editor when editing from the board', () => {
+    renderTracker()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Board' }))
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Edit Cache project summaries' }),
+    )
+
+    expect(screen.getByLabelText('Task name')).toHaveValue(
+      'Cache project summaries',
+    )
+    expect(
+      screen.queryByRole('region', { name: 'In Progress column' }),
+    ).not.toBeInTheDocument()
   })
 })

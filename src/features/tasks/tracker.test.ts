@@ -4,7 +4,9 @@ import {
   draftFromTask,
   emptyTaskDraft,
   filterTasks,
+  groupTasksByStatus,
   sortTasks,
+  taskToInput,
   type TaskDraft,
 } from './tracker'
 import { projectFixtures, taskFixtures } from '@/test/fixtures'
@@ -176,5 +178,39 @@ describe('sortTasks', () => {
       'OPS-142',
       'OPS-144',
     ])
+  })
+})
+
+describe('taskToInput', () => {
+  it('copies every task field without the identifier', () => {
+    expect(taskToInput(taskFixtures[0])).toEqual({
+      reference: 'OPS-142',
+      name: 'Cache project summaries',
+      project: 'Data Platform',
+      assignees: ['Mina Park', 'Ravi Shah'],
+      storyPoints: 3,
+      assignedDate: '2026-01-05',
+      doneDate: null,
+      status: 'In Progress',
+      notes: 'Adds a read-through cache for project rollups.',
+    })
+  })
+})
+
+describe('groupTasksByStatus', () => {
+  it('groups tasks into the board columns in workflow order', () => {
+    const groups = groupTasksByStatus(taskFixtures)
+
+    expect(groups.map((group) => group.status)).toEqual([
+      'In Progress',
+      'Reviewing',
+      'Test',
+      'Blocked',
+      'Resolved',
+      'Shelved',
+    ])
+    expect(
+      groups.map((group) => group.tasks.map((task) => task.reference)),
+    ).toEqual([['OPS-142'], ['OPS-145'], ['OPS-146'], ['OPS-143'], ['OPS-144'], []])
   })
 })
